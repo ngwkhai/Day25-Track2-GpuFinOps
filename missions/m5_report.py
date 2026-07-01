@@ -51,8 +51,22 @@ def run(verbose: bool = True) -> dict:
         "carbon_g": sustainability.carbon_g(wh, "us-east-1"),
         "best_region": min(sustainability.REGION_CARBON, key=sustainability.REGION_CARBON.get),
     }
+    reasoning = r2.get("reasoning", {})
+    if reasoning:
+        sust["reasoning_cost_pct"] = reasoning.get("reasoning_cost_pct", 0)
+        sust["reasoning_wh_pct"] = reasoning.get("reasoning_wh_pct", 0)
+        sust["reasoning_traffic_pct"] = reasoning.get("reasoning_traffic_pct", 0)
 
     md = report.build_report(baseline, optimized, levers, sustainability=sust)
+    if reasoning:
+        md += (
+            f"\n\n## Reasoning budget\n\n"
+            f"- Reasoning traffic: {reasoning.get('reasoning_traffic_pct', 0)}% of requests\n"
+            f"- Reasoning cost share: {reasoning.get('reasoning_cost_pct', 0)}% of inference spend\n"
+            f"- Reasoning energy share: {reasoning.get('reasoning_wh_pct', 0)}% of total Wh\n"
+            f"- Recommendation: route reasoning only when task confidence < threshold; "
+            f"capping at 10% traffic would cut ~{reasoning.get('reasoning_wh_pct', 0) * 0.9:.0f}% of inference energy\n"
+        )
     out_md = os.path.join(ROOT, "outputs", "report.md")
     os.makedirs(os.path.dirname(out_md), exist_ok=True)
     with open(out_md, "w") as f:
